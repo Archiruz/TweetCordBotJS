@@ -163,10 +163,10 @@ export const monitorTweets = task({
       
       // Handle rate limiting specifically
       if (error.response?.status === 429) {
-        logger.log('⏳ Rate limit hit - will retry in next scheduled run (15 minutes)');
+        logger.log('⏳ Rate limit hit - will retry in next scheduled run (default: 8 hours)');
         return { 
           status: 'rate_limited', 
-          message: 'Rate limit exceeded - will retry in 15 minutes',
+          message: 'Rate limit exceeded - will retry in 8 hours (default)',
           tweetsProcessed: 0
         };
       }

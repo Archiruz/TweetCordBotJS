@@ -109,7 +109,7 @@ export class TwitterClient {
       
       // Handle rate limiting - X API allows 1 request per 15 minutes for this endpoint
       if (error.response?.status === 429) {
-        console.error('⚠️  Rate limit exceeded (429). Need to wait 15 minutes before next request.');
+        console.error('⚠️  Rate limit exceeded (429). Need to wait at least 15 minutes before next request.');
         // In Trigger.dev, we'll handle this by scheduling the next run appropriately
         // rather than sleeping here
       }
