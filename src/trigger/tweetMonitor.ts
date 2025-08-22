@@ -69,7 +69,7 @@ export const monitorTweets = task({
       const userId = await twitterClient.getUserId(config.xUsername);
       
       // Get latest 5 tweets (excluding retweets and replies)
-      const { tweets, users } = await twitterClient.getLatestTweets(userId, 5);
+      const { tweets, users, media } = await twitterClient.getLatestTweets(userId, 5);
       
       if (tweets.length === 0) {
         logger.log('📭 No tweets found');
@@ -125,7 +125,7 @@ export const monitorTweets = task({
         logger.log('📝 Processing tweet', { tweetId: tweet.id });
         
         try {
-          await discordClient.sendTweet(tweet, user);
+          await discordClient.sendTweet(tweet, user, media);
           processedCount++;
           
           // Add small delay between messages

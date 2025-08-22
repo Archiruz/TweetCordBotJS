@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Tweet, TwitterUser } from './twitterClient';
+import type { Tweet, TwitterUser, Media } from './twitterClient';
 
 export interface DiscordConfig {
   webhookUrl: string;
@@ -25,6 +25,9 @@ export interface DiscordEmbed {
   };
   timestamp?: string;
   url?: string;
+  image?: {
+    url: string;
+  };
 }
 
 export class DiscordClient {
@@ -63,10 +66,15 @@ export class DiscordClient {
     }
   }
 
-  createTweetEmbed(tweet: Tweet, user: TwitterUser): DiscordEmbed {
+  createTweetEmbed(tweet: Tweet, user: TwitterUser, media: Media[] = []): DiscordEmbed {
     const tweetUrl = `https://x.com/${user.username}/status/${tweet.id}`;
     
-    return {
+    // Find media for this tweet
+    const tweetMedia = media.filter(m => 
+      tweet.attachments?.media_keys?.includes(m.media_key)
+    );
+    
+    const embed: DiscordEmbed = {
       color: 0x1DA1F2, // Twitter blue
       author: {
         name: `${user.name} (@${user.username})${user.verified ? ' ✓' : ''}`,
@@ -88,12 +96,73 @@ export class DiscordClient {
       timestamp: tweet.created_at,
       url: tweetUrl
     };
+
+    // Add the first image/video if available
+    if (tweetMedia.length > 0) {
+      const firstMedia = tweetMedia[0];
+      
+      if (firstMedia.type === 'photo' && firstMedia.url) {
+        embed.image = { url: firstMedia.url };
+      } else if ((firstMedia.type === 'video' || firstMedia.type === 'animated_gif') && firstMedia.preview_image_url) {
+        embed.image = { url: firstMedia.preview_image_url };
+        // Add a note about video content
+        embed.fields?.push({
+          name: '🎥 Media',
+          value: firstMedia.type === 'video' ? 'Video content' : 'Animated GIF',
+          inline: true
+        });
+      }
+      
+      // If there are multiple media items, add a note
+      if (tweetMedia.length > 1) {
+        embed.fields?.push({
+          name: '📸 Additional Media',
+          value: `${tweetMedia.length - 1} more item(s) - view on X`,
+          inline: true
+        });
+      }
+    }
+    
+    return embed;
   }
 
-  async sendTweet(tweet: Tweet, user: TwitterUser): Promise<void> {
-    const embed = this.createTweetEmbed(tweet, user);
-    const content = `🐦 **New post from @${user.username}**`;
-    await this.sendMessage(content, embed);
+  private hasValidMedia(media: Media[]): boolean {
+    return media.some(m => 
+      (m.type === 'photo' && m.url) || 
+      ((m.type === 'video' || m.type === 'animated_gif') && m.preview_image_url)
+    );
+  }
+
+  async sendTweet(tweet: Tweet, user: TwitterUser, media: Media[] = []): Promise<void> {
+    const tweetUrl = `https://x.com/${user.username}/status/${tweet.id}`;
+    
+    // Find media for this tweet
+    const tweetMedia = media.filter(m => 
+      tweet.attachments?.media_keys?.includes(m.media_key)
+    );
+    
+    try {
+      // Try to send with embed including media
+      const embed = this.createTweetEmbed(tweet, user, media);
+      const content = `🐦 **New post from @${user.username}**`;
+      
+      // Check if we have valid media to include
+      if (tweetMedia.length > 0 && this.hasValidMedia(tweetMedia)) {
+        console.log(`📸 Including ${tweetMedia.length} media item(s) in embed`);
+      }
+      
+      await this.sendMessage(content, embed);
+      
+    } catch (embedError: any) {
+      console.warn('⚠️ Embed failed, falling back to URL only', { 
+        error: embedError.message,
+        tweetId: tweet.id 
+      });
+      
+      // Fallback: send just the URL (Discord may auto-embed)
+      const fallbackContent = `🐦 **New post from @${user.username}**\n${tweetUrl}`;
+      await this.sendMessage(fallbackContent);
+    }
   }
 }
 

@@ -81,9 +81,10 @@ async function getLatestTweets(userId, maxResults = 5) {
                   params: {
             max_results: maxResults,
             exclude: 'retweets,replies', // Exclude retweets and replies
-            'tweet.fields': 'created_at,author_id,public_metrics,context_annotations',
-            'expansions': 'author_id',
-            'user.fields': 'username,name,verified'
+            'tweet.fields': 'created_at,author_id,public_metrics,context_annotations,attachments',
+            'expansions': 'author_id,attachments.media_keys',
+            'user.fields': 'username,name,verified,profile_image_url',
+            'media.fields': 'media_key,type,url,preview_image_url,width,height'
           }
       }
     );
@@ -92,11 +93,12 @@ async function getLatestTweets(userId, maxResults = 5) {
       console.log(`✅ Retrieved ${response.data.data.length} tweets`);
       return {
         tweets: response.data.data,
-        users: response.data.includes?.users || []
+        users: response.data.includes?.users || [],
+        media: response.data.includes?.media || []
       };
     }
     
-    return { tweets: [], users: [] };
+    return { tweets: [], users: [], media: [] };
   } catch (error) {
     console.error('❌ Error fetching tweets:', error.response?.data || error.message);
     
@@ -142,10 +144,15 @@ async function sendToDiscord(content, embed = null) {
 }
 
 // Create Discord embed for tweet
-function createTweetEmbed(tweet, user) {
+function createTweetEmbed(tweet, user, media = []) {
   const tweetUrl = `https://x.com/${user.username}/status/${tweet.id}`;
   
-  return {
+  // Find media for this tweet
+  const tweetMedia = media.filter(m => 
+    tweet.attachments?.media_keys?.includes(m.media_key)
+  );
+  
+  const embed = {
     color: 0x1DA1F2, // Twitter blue
     author: {
       name: `${user.name} (@${user.username})${user.verified ? ' ✓' : ''}`,
@@ -167,6 +174,34 @@ function createTweetEmbed(tweet, user) {
     timestamp: tweet.created_at,
     url: tweetUrl
   };
+
+  // Add the first image/video if available
+  if (tweetMedia.length > 0) {
+    const firstMedia = tweetMedia[0];
+    
+    if (firstMedia.type === 'photo' && firstMedia.url) {
+      embed.image = { url: firstMedia.url };
+    } else if ((firstMedia.type === 'video' || firstMedia.type === 'animated_gif') && firstMedia.preview_image_url) {
+      embed.image = { url: firstMedia.preview_image_url };
+      // Add a note about video content
+      embed.fields.push({
+        name: '🎥 Media',
+        value: firstMedia.type === 'video' ? 'Video content' : 'Animated GIF',
+        inline: true
+      });
+    }
+    
+    // If there are multiple media items, add a note
+    if (tweetMedia.length > 1) {
+      embed.fields.push({
+        name: '📸 Additional Media',
+        value: `${tweetMedia.length - 1} more item(s) - view on X`,
+        inline: true
+      });
+    }
+  }
+  
+  return embed;
 }
 
 // Load last processed tweet ID
@@ -200,7 +235,7 @@ async function checkAndSendTweets() {
     const userId = await getUserId(config.x.username);
     
     // Get latest tweets
-    const { tweets, users } = await getLatestTweets(userId, 5);
+    const { tweets, users, media } = await getLatestTweets(userId, 5);
     
     if (tweets.length === 0) {
       console.log('📭 No tweets found');
@@ -237,7 +272,7 @@ async function checkAndSendTweets() {
     for (const tweet of newTweets.reverse()) {
       console.log(`📝 Processing tweet: ${tweet.id}`);
       
-      const embed = createTweetEmbed(tweet, user);
+      const embed = createTweetEmbed(tweet, user, media);
       const content = `🐦 **New post from @${user.username}**`;
       
       await sendToDiscord(content, embed);

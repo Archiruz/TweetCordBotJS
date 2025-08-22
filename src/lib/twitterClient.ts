@@ -16,6 +16,18 @@ export interface Tweet {
     reply_count: number;
     quote_count: number;
   };
+  attachments?: {
+    media_keys?: string[];
+  };
+}
+
+export interface Media {
+  media_key: string;
+  type: 'photo' | 'video' | 'animated_gif';
+  url?: string;
+  preview_image_url?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface TwitterUser {
@@ -60,7 +72,7 @@ export class TwitterClient {
     }
   }
 
-  async getLatestTweets(userId: string, maxResults: number = 5): Promise<{ tweets: Tweet[], users: TwitterUser[] }> {
+  async getLatestTweets(userId: string, maxResults: number = 5): Promise<{ tweets: Tweet[], users: TwitterUser[], media?: Media[] }> {
     try {
       console.log(`🐦 Fetching latest ${maxResults} tweets from user ${userId}...`);
       
@@ -74,9 +86,10 @@ export class TwitterClient {
           params: {
             max_results: maxResults,
             exclude: 'retweets,replies', // Exclude retweets and replies
-            'tweet.fields': 'created_at,author_id,public_metrics,context_annotations',
-            'expansions': 'author_id',
-            'user.fields': 'username,name,verified,profile_image_url'
+            'tweet.fields': 'created_at,author_id,public_metrics,context_annotations,attachments',
+            'expansions': 'author_id,attachments.media_keys',
+            'user.fields': 'username,name,verified,profile_image_url',
+            'media.fields': 'media_key,type,url,preview_image_url,width,height'
           }
         }
       );
@@ -85,11 +98,12 @@ export class TwitterClient {
         console.log(`✅ Retrieved ${response.data.data.length} tweets`);
         return {
           tweets: response.data.data,
-          users: response.data.includes?.users || []
+          users: response.data.includes?.users || [],
+          media: response.data.includes?.media || []
         };
       }
       
-      return { tweets: [], users: [] };
+      return { tweets: [], users: [], media: [] };
     } catch (error: any) {
       console.error('❌ Error fetching tweets:', error.response?.data || error.message);
       
@@ -104,10 +118,13 @@ export class TwitterClient {
     }
   }
 
-  async getLatestTweet(userId: string): Promise<Tweet | null> {
+  async getLatestTweet(userId: string): Promise<{ tweet: Tweet | null, media: Media[] }> {
     try {
-      const { tweets } = await this.getLatestTweets(userId, 1);
-      return tweets.length > 0 ? tweets[0] : null;
+      const { tweets, media } = await this.getLatestTweets(userId, 1);
+      return { 
+        tweet: tweets.length > 0 ? tweets[0] : null,
+        media: media || []
+      };
     } catch (error) {
       throw error;
     }
