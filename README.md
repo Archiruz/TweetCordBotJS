@@ -84,53 +84,7 @@ CHECK_INTERVAL_MINUTES=480
    - Right-click on the thread and select "Copy Thread ID"
    - If no thread ID is provided, messages will post to the main channel
 
-## Deployment Options
-
-### Option 1: Trigger.dev (Recommended for Production)
-
-This project is optimized for deployment on [Trigger.dev](https://trigger.dev), which provides a robust serverless platform for scheduled tasks.
-
-#### Setup Trigger.dev Deployment
-
-1. **Install Trigger.dev CLI**
-   ```bash
-   npm install
-   ```
-
-2. **Initialize Trigger.dev Project**
-   ```bash
-   npx trigger.dev@latest init
-   ```
-
-3. **Set Environment Variables in Trigger.dev Dashboard**
-   - Go to your project dashboard on [trigger.dev](https://trigger.dev)
-   - Navigate to Environment Variables section
-   - Add the following variables:
-     - `X_BEARER_TOKEN`: Your X API bearer token
-     - `X_USERNAME`: Username to monitor (without @)
-     - `DISCORD_WEBHOOK_URL`: Your Discord webhook URL
-     - `DISCORD_THREAD_ID`: Optional thread ID
-
-4. **Test Locally**
-   ```bash
-   npm run dev
-   ```
-
-5. **Deploy to Production**
-   ```bash
-   npm run deploy
-   ```
-
-#### Trigger.dev Features
-- ✅ **Automatic Scheduling**: Runs every 8 hours (optimized for free tier)
-- ✅ **Error Handling**: Built-in retries and error notifications
-- ✅ **Monitoring**: Dashboard for viewing task runs and logs
-- ✅ **Scalability**: Serverless execution with automatic scaling
-- ✅ **Free Tier**: Generous free tier for personal projects
-
-### Option 2: Local/Server Deployment
-
-For local development or server deployment:
+## Deployment
 
 ```bash
 npm start
@@ -183,15 +137,12 @@ Errors are logged to console and optionally sent to Discord.
 ```
 TweetCordBotJS/
 ├── src/
-│   ├── trigger/
-│   │   └── tweetMonitor.ts    # Trigger.dev task definitions
 │   └── lib/
 │       ├── twitterClient.ts   # X API client
 │       ├── discordClient.ts   # Discord webhook client
 │       └── storage.ts         # Storage interface
-├── index.js                   # Legacy standalone script
+├── index.js                   # Main application script
 ├── package.json               # Dependencies and scripts
-├── trigger.config.ts          # Trigger.dev configuration
 ├── tsconfig.json              # TypeScript configuration
 ├── env.example                # Environment variables template
 ├── README.md                  # This documentation
@@ -224,22 +175,6 @@ TweetCordBotJS/
 - Wait for the rate limit to reset (X API resets monthly)
 - The scheduled task is optimized to stay within limits
 
-### Trigger.dev Specific Issues
-
-**"Task not found" or deployment issues**
-- Ensure you've run `npx trigger.dev@latest init`
-- Check that `trigger.config.ts` is properly configured
-- Verify your project is connected to the correct Trigger.dev account
-
-**"Environment variables not found"**
-- Set environment variables in the Trigger.dev dashboard
-- Variables set locally won't be available in production
-- Use the exact variable names from `env.example`
-
-**"Task timeout" errors**
-- The task has built-in retries and error handling
-- Check the Trigger.dev dashboard for detailed logs
-- Rate limits may cause temporary failures (this is normal)
 
 ### Rate Limit Calculator
 
